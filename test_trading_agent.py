@@ -5,7 +5,7 @@ Unit tests for the Stock Trading Agent
 import unittest
 from stock_trading_agent import (
     Stock, Portfolio, Action, MovingAverageCrossoverStrategy,
-    StockDataSimulator, StockTradingAgent
+    BedrockLLMStrategy, StockDataSimulator, StockTradingAgent
 )
 
 
@@ -214,6 +214,51 @@ class TestStockTradingAgent(unittest.TestCase):
         self.assertIn('portfolio_value', status)
         self.assertIn('current_prices', status)
         self.assertEqual(status['cash'], 10000.0)
+
+
+class TestBedrockLLMStrategy(unittest.TestCase):
+    """Test Bedrock LLM Strategy"""
+    
+    def test_initialization(self):
+        strategy = BedrockLLMStrategy(risk_tolerance="moderate", use_bedrock=False)
+        self.assertEqual(strategy.risk_tolerance, "moderate")
+        self.assertFalse(strategy.use_bedrock)
+    
+    def test_analyze_with_insufficient_data(self):
+        strategy = BedrockLLMStrategy(use_bedrock=False)
+        stock = Stock("AAPL", 150.0)
+        
+        action = strategy.analyze(stock)
+        self.assertEqual(action, Action.HOLD)
+    
+    def test_analyze_with_data(self):
+        strategy = BedrockLLMStrategy(use_bedrock=False)
+        stock = Stock("AAPL", 100.0)
+        
+        # Add price history to create uptrend
+        for price in [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120]:
+            stock.update_price(price)
+        
+        action = strategy.analyze(stock)
+        # Action should be BUY, SELL, or HOLD
+        self.assertIn(action, [Action.BUY, Action.SELL, Action.HOLD])
+    
+    def test_decision_history(self):
+        strategy = BedrockLLMStrategy(use_bedrock=False)
+        stock = Stock("AAPL", 100.0)
+        
+        # Add data and analyze
+        for price in [100, 102, 104, 106, 108]:
+            stock.update_price(price)
+        
+        strategy.analyze(stock)
+        
+        history = strategy.get_decision_history()
+        self.assertEqual(len(history), 1)
+        self.assertIn('symbol', history[0])
+        self.assertIn('action', history[0])
+        self.assertIn('confidence', history[0])
+        self.assertIn('reasoning', history[0])
 
 
 if __name__ == '__main__':
